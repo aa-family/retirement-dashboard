@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retirement Command Center — for Amanda</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#1F3A4D; --teal:#2E7D8A; --green:#8BC34A; --amber:#E0A82E;
+    --ink:#1F2937; --grey:#6B7280; --line:#E5E7EB; --bg:#F5F7F8; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px}
+  header{background:var(--navy);color:#fff;border-radius:16px;padding:22px 26px;margin-bottom:18px}
+  header h1{font-size:22px;font-weight:700;letter-spacing:.3px}
+  header p{color:#B9C7D0;font-size:13px;margin-top:4px}
+  .grid{display:grid;gap:16px}
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;
+        box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .kpi .label{font-size:10.5px;font-weight:700;letter-spacing:.6px;color:var(--grey);text-transform:uppercase}
+  .kpi .value{font-size:26px;font-weight:800;color:var(--navy);margin-top:6px}
+  .kpi .value.teal{color:var(--teal)} .kpi .value.green{color:#5c9e1f}
+  .bar{height:9px;background:var(--line);border-radius:6px;margin-top:10px;overflow:hidden}
+  .bar > span{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:6px}
+  .sub{font-size:11px;color:var(--grey);margin-top:6px}
+  .two{grid-template-columns:1fr 1fr}
+  @media(max-width:760px){.two{grid-template-columns:1fr}}
+  h2{font-size:13px;font-weight:700;letter-spacing:.5px;color:var(--navy);text-transform:uppercase;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td{padding:8px 6px;border-bottom:1px solid var(--line)}
+  td.r{text-align:right;font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none;font-weight:700}
+  .chip{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:middle}
+  .split-row{display:flex;align-items:center;gap:10px;margin:10px 0}
+  .split-row .name{width:110px;font-size:13px;font-weight:600}
+  .split-row .track{flex:1;height:22px;background:var(--line);border-radius:6px;overflow:hidden}
+  .split-row .track > span{display:block;height:100%;border-radius:6px;color:#fff;font-size:12px;font-weight:700;
+        text-align:right;padding:2px 8px;line-height:18px}
+  .legend-item{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .legend-item:last-child{border-bottom:none}
+  .legend-item .tag{min-width:118px;font-weight:700;color:#fff;padding:3px 8px;border-radius:6px;height:fit-content;font-size:12px}
+  .legend-item .desc{color:#374151}
+  .ms{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .ms:last-child{border-bottom:none}
+  .ms .when{min-width:78px;font-weight:700;color:var(--navy)}
+  canvas{max-height:280px}
+  footer{text-align:center;color:var(--grey);font-size:11.5px;margin:18px 0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Retirement Command Center</h1>
+    <p>For Amanda · everything at a glance · we retire August 2029</p>
+  </header>
+
+  <!-- KPIs -->
+  <div class="grid kpis" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label">Total portfolio today</div><div class="value" id="kTotal">—</div></div>
+    <div class="card kpi"><div class="label">Projected at retirement</div><div class="value" id="kRet">—</div><div class="sub">August 2029</div></div>
+    <div class="card kpi"><div class="label">Time to retirement</div><div class="value teal" id="kCountdown">—</div><div class="sub" id="kCountSub"></div></div>
+    <div class="card kpi"><div class="label">Progress to goal</div><div class="value green" id="kProg">—</div><div class="bar"><span id="kProgBar"></span></div></div>
+  </div>
+
+  <!-- Split + doughnut -->
+  <div class="grid two" style="margin-bottom:16px">
+    <div class="card">
+      <h2>What we have now</h2>
+      <table id="tblNow"></table>
+    </div>
+    <div class="card">
+      <h2>Where our money is today</h2>
+      <canvas id="doughnut"></canvas>
+    </div>
+  </div>
+
+  <!-- Growth + savings split -->
+  <div class="grid two" style="margin-bottom:16px">
+    <div class="card">
+      <h2>Growth to retirement (2026–2029)</h2>
+      <canvas id="growth"></canvas>
+    </div>
+    <div class="card">
+      <h2>How we invest new savings</h2>
+      <p class="sub" style="margin-bottom:8px">Every month we save ~40% of income. Excludes the automatic 401k, which is folded into Stocks/ETF.</p>
+      <div class="split-row"><div class="name">Crypto</div><div class="track"><span id="spCry" style="background:var(--amber)"></span></div></div>
+      <div class="split-row"><div class="name">Stocks / ETF</div><div class="track"><span id="spStk" style="background:var(--navy)"></span></div></div>
+    </div>
+  </div>
+
+  <!-- Legend + milestones -->
+  <div class="grid two" style="margin-bottom:16px">
+    <div class="card">
+      <h2>What each bucket is</h2>
+      <div id="legend"></div>
+    </div>
+    <div class="card">
+      <h2>Next steps</h2>
+      <div id="milestones"></div>
+    </div>
+  </div>
+
+  <footer>Snapshot as of <span id="asof"></span> · figures are projections from our plan, not guarantees · the countdown updates automatically.</footer>
+</div>
+
+<script>
+/* ---- DATA (update these when the model changes) ---- */
+const D = {
+  asOf: "July 2026",
+  retireDate: "2029-08-09",
+  goal: 1650737,
+  buckets: [   // simplified: Stocks/ETF = Stocks + 401k
+    {name:"Stocks / ETF", value:600000, color:"#1F3A4D", note:"Diversified market investments, including the US 401k. Moderate risk, steady long-term growth."},
+    {name:"Crypto",       value:300000, color:"#E0A82E", note:"Bitcoin, Ethereum & Solana on a cold wallet. Higher risk & reward; capped in the plan."},
+    {name:"German pension",value:108000, color:"#2E7D8A", note:"State pension from Anton's years in Germany. Pays out monthly from age 67."},
+  ],
+  years: ["2026","2027","2028","2029"],
+  growth: {                                  // per bucket, 2026–2029
+    "Stocks / ETF": [600000, 693200, 803380, 933821],
+    "Crypto":       [300000, 382800, 484440, 608916],
+    "German pension":[108000, 108000, 108000, 108000],
+  },
+  savings: { crypto:0.55, stocks:0.45 },     // matches model (401k 10 + Stocks 35 = 45; Crypto 55)
+  milestones: [
+    {when:"Jan 2027", what:"Start Merrill → Schwab transfer of the brokerage account"},
+    {when:"2028",     what:"Open Schwab Bank checking while still US-resident"},
+    {when:"2028",     what:"Set up Wise for USD ⇄ CNY / EUR transfers"},
+    {when:"2029",     what:"Open a Chinese bank account (ICBC / Bank of China)"},
+    {when:"Aug 2029", what:"Retire and relocate to Asia 🎉"},
+  ],
+};
+
+const fmt = n => "$" + Math.round(n).toLocaleString("en-US");
+const total = D.buckets.reduce((s,b)=>s+b.value,0);
+
+/* KPIs */
+document.getElementById("kTotal").textContent = fmt(total);
+document.getElementById("kRet").textContent   = fmt(D.goal);
+const prog = Math.min(1, total/D.goal);
+document.getElementById("kProg").textContent = Math.round(prog*100)+"%";
+document.getElementById("kProgBar").style.width = (prog*100)+"%";
+document.getElementById("asof").textContent = D.asOf;
+
+/* live countdown */
+(function(){
+  const now=new Date(), ret=new Date(D.retireDate);
+  const yrs=(ret-now)/(365.25*24*3600*1000);
+  const el=document.getElementById("kCountdown"), sub=document.getElementById("kCountSub");
+  if(yrs>0){ el.textContent = yrs.toFixed(1)+" yrs";
+    sub.textContent = "until "+ret.toLocaleDateString("en-US",{month:"long",year:"numeric"}); }
+  else { el.textContent="Retired! 🌴"; sub.textContent=""; }
+})();
+
+/* table */
+const tbl=document.getElementById("tblNow");
+D.buckets.forEach(b=>{
+  tbl.insertAdjacentHTML("beforeend",
+    `<tr><td><span class="chip" style="background:${b.color}"></span>${b.name}</td>
+     <td class="r">${fmt(b.value)}</td><td class="r">${Math.round(b.value/total*100)}%</td></tr>`);
+});
+tbl.insertAdjacentHTML("beforeend",
+  `<tr><td>Total</td><td class="r">${fmt(total)}</td><td class="r">100%</td></tr>`);
+
+/* doughnut */
+new Chart(document.getElementById("doughnut"),{
+  type:"doughnut",
+  data:{labels:D.buckets.map(b=>b.name),
+        datasets:[{data:D.buckets.map(b=>b.value),backgroundColor:D.buckets.map(b=>b.color),borderColor:"#fff",borderWidth:2}]},
+  options:{cutout:"58%",plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:12}}},
+    tooltip:{callbacks:{label:c=>` ${c.label}: ${fmt(c.raw)} (${Math.round(c.raw/total*100)}%)`}}}}
+});
+
+/* growth stacked bar */
+new Chart(document.getElementById("growth"),{
+  type:"bar",
+  data:{labels:D.years,
+        datasets:D.buckets.map(b=>({label:b.name,data:D.growth[b.name],backgroundColor:b.color}))},
+  options:{plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}},
+    tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.raw)}`}}},
+    scales:{x:{stacked:true,grid:{display:false}},
+            y:{stacked:true,ticks:{callback:v=>"$"+(v/1e6).toFixed(1)+"M"}}}}
+});
+
+/* savings split */
+document.getElementById("spCry").style.width=(D.savings.crypto*100)+"%";
+document.getElementById("spCry").textContent=Math.round(D.savings.crypto*100)+"%";
+document.getElementById("spStk").style.width=(D.savings.stocks*100)+"%";
+document.getElementById("spStk").textContent=Math.round(D.savings.stocks*100)+"%";
+
+/* legend */
+const leg=document.getElementById("legend");
+D.buckets.forEach(b=>{
+  leg.insertAdjacentHTML("beforeend",
+    `<div class="legend-item"><span class="tag" style="background:${b.color}">${b.name}</span><span class="desc">${b.note}</span></div>`);
+});
+
+/* milestones */
+const ms=document.getElementById("milestones");
+D.milestones.forEach(m=>{
+  ms.insertAdjacentHTML("beforeend",`<div class="ms"><span class="when">${m.when}</span><span>${m.what}</span></div>`);
+});
+</script>
+</body>
+</html>
