@@ -94,6 +94,15 @@
     </div>
   </div>
 
+  <!-- Historical annual growth -->
+  <div class="grid" style="margin-bottom:16px">
+    <div class="card">
+      <h2>Historical annual growth</h2>
+      <p class="sub" style="margin-bottom:6px">How fast each bucket has actually grown per year. Tracked by hand — balances alone can't show this, since new savings and market growth blend together. Last updated <b id="gAsOf"></b>.</p>
+      <table id="tblGrowth"></table>
+    </div>
+  </div>
+
   <!-- Legend + milestones -->
   <div class="grid two" style="margin-bottom:16px">
     <div class="card">
@@ -127,6 +136,12 @@ const D = {
     "German pension":[108000, 108000, 108000, 108000],
   },
   savings: { crypto:0.55, stocks:0.45 },     // matches model (401k 10 + Stocks 35 = 45; Crypto 55)
+  growthAsOf: "July 2026",                   // <-- Anton updates every 6 months (Jan & Jul)
+  annualGrowth: {                            // trailing actual annual growth per bucket (manually tracked)
+    "Stocks / ETF": 0.35,
+    "Crypto":       0.15,
+    "German pension": 0.0,                    // fixed pension estimate — no growth
+  },
   milestones: [
     {when:"Jan 2027", what:"Start Merrill → Schwab transfer of the brokerage account"},
     {when:"2028",     what:"Open Schwab Bank checking while still US-resident"},
@@ -192,6 +207,21 @@ document.getElementById("spCry").style.width=(D.savings.crypto*100)+"%";
 document.getElementById("spCry").textContent=Math.round(D.savings.crypto*100)+"%";
 document.getElementById("spStk").style.width=(D.savings.stocks*100)+"%";
 document.getElementById("spStk").textContent=Math.round(D.savings.stocks*100)+"%";
+
+/* historical annual growth + weighted total */
+document.getElementById("gAsOf").textContent = D.growthAsOf;
+const gt = document.getElementById("tblGrowth");
+let weighted = 0;
+D.buckets.forEach(b=>{
+  const g = D.annualGrowth[b.name] || 0;
+  weighted += (b.value/total) * g;
+  const disp = g>0 ? (g*100).toFixed(0)+"% / yr" : "— fixed";
+  gt.insertAdjacentHTML("beforeend",
+    `<tr><td><span class="chip" style="background:${b.color}"></span>${b.name}</td>
+     <td class="r">${disp}</td><td class="r sub" style="border:none">${Math.round(b.value/total*100)}% of portfolio</td></tr>`);
+});
+gt.insertAdjacentHTML("beforeend",
+  `<tr><td>Total portfolio (weighted)</td><td class="r">${(weighted*100).toFixed(1)}% / yr</td><td></td></tr>`);
 
 /* legend */
 const leg=document.getElementById("legend");
